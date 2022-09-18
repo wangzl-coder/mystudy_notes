@@ -9,8 +9,9 @@
  *
  * */
 
-//#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define SECOND_PER_YEAR (60UL*60UL*24UL*360UL)
 
+//#define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define MIN(a,b) ({         \
         typeof(a) p = a;    \
         typeof(b) q = b;    \
@@ -64,6 +65,7 @@ void func4(void)
         float height;
     };
     printf("offset of height is %d \r\n",ITEM_OFFSET(struct stu_st, height));
+    printf("second per year is %ld \r\n",SECOND_PER_YEAR);
 }
 
 int main(void)
