@@ -22,7 +22,12 @@
 #define TO_STR(na) (#na)
 
 #define MY_DEBUG(fmt,...) \
-    printf("[MY_DEBUG : [%s] <%d>]:"fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__);
+    printf("[MY_DEBUG : [%s] <%d>]:"fmt, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
+#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
+
+#define ITEM_OFFSET(type,item)  ((int) (&(((type *)0)->item)))
+
 
 void func1(void)
 {
@@ -51,10 +56,21 @@ void func3()
     MY_DEBUG("%s \r\n", buff);
 }
 
+void func4(void)
+{
+    struct stu_st{
+        int class;
+        int age;
+        float height;
+    };
+    printf("offset of height is %d \r\n",ITEM_OFFSET(struct stu_st, height));
+}
+
 int main(void)
 {
     func1();
     func2();
     func3();
+    func4();
     exit(0);
 }
