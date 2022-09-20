@@ -99,11 +99,36 @@ static void func4()
     puts(buff);
 }
 
+/*
+ * 循环输入直到匹配时。 scanf 返回值处理
+ *
+ *
+ *
+ * */
+static void func5()
+{
+    int i ;
+    int ret;
+
+    while(1)
+    {
+        ret = scanf("%d",&i);
+        if(ret != 1) {
+            while(getchar() != '\n');       //将缓冲区内容读出，以便下次输入
+            printf("input invaild . again \r\n");
+        } else {
+            printf("i = %d \r\n", i);
+            break;
+        }
+    }
+}
+
 int main()
 {
 //  func1();
 //  func2();
 //  func3();
-    func4();
+//  func4();
+    func5();
     exit(0);
 }
