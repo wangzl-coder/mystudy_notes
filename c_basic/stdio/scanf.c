@@ -77,21 +77,25 @@ static void func3()
  * 字符串问题
  * 现象：
  *      输入hello word回车，打印hello
+ *      输入20个字符，出现段错误
  * 原因：
  *      scanf匹配字符串会自动加上\0
  *      scanf 默认遇到空格结束匹配
+ *      scanf不校验接收数组大小
  * 解决办法：
  *      添加修饰符[^'\n']说明只到换行符结束
- *
+ *      最好使用fgets,限定最大接收字符数，算\0(fgets会在接收字符最后自动加上尾零)
  * */
 static void func4()
 {
     char buff[20];
-    memset(buff, 'a',20*sizeof(char));
+    memset(buff, 'a',sizeof(buff));
 #if 0
     scanf("%s",buff);
 #endif
-    scanf("%[^'\n']s", buff);
+    //scanf("%[^'\n']s", buff);
+    fgets(buff, sizeof(buff), stdin);
+    printf("strlen of buff is %ld \r\n",strlen(buff));
     puts(buff);
 }
 
