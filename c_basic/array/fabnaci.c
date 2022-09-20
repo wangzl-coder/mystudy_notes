@@ -57,13 +57,16 @@ static void func2()
         } else {
             int *a = malloc(count * sizeof(int));
             ret = fabonacci(count, a);
-            if(ret < 0)
+            if(ret < 0) {
                 printf("The minimum number of inputs is 3 \r\n");
-            else {
+                free(a);
+            } else {
                 printf("count %d of fab is : \r\n",count);
-                for(int i = 0; i < count; i++, a++)
-                    printf("%d ", *a);
+                int *p = a;
+                for(int i = 0; i < count; i++, p++)
+                    printf("%d ", *p);
                 putchar('\n');
+                free(a);
                 break;
             }
         }
