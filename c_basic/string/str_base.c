@@ -9,8 +9,13 @@
 static void string_declare()
 {
 //    char str[STRLEN] = "wangzl";
+//    char str[] = "wangzl";
+//    char str[] = {'w', 'a', 'n', 'g', 'z', 'l'};
 //    char str[STRLEN] = "wang";
-    char str[STRLEN] = "wang\0zl";
+//    char str[STRLEN] = "wang\0zl";
+//    char *str = "wangzl";
+    char *str;
+    str = "wangzl";
     char dest[STRLEN];
     puts(str);
     printf("str[4] = %d \r\n",str[4]);
