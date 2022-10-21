@@ -47,7 +47,7 @@ void array_list_display(struct arrlist_st *list)
         return;
 
     for(i = 0; i < list->last; i++) {
-        printf("%d, ", list->data[i]);
+        printf("%d ", list->data[i]);
     }
 }
 
@@ -56,10 +56,10 @@ int array_list_insert(struct arrlist_st *list, int index, int data)
     int i;
     if(list == NULL || list->data == NULL)
         return -EINVAL;
-    
+
     if(index < 0 || index > list->last)
         return -EINVAL;
-    
+
     if(list->last > list->lenth - 1)
        return -ENOSPC;
 
@@ -68,6 +68,8 @@ int array_list_insert(struct arrlist_st *list, int index, int data)
     }
     list->data[i] = data;
     list->last ++;
+    
+    return 0;
 } 
 
 int array_list_delete(struct arrlist_st *list, int data)
@@ -108,13 +110,42 @@ int array_list_query(struct arrlist_st *list, int data)
     
     return i;
 }
-/*
-int array_list_combine(struct arrlist_st *dest, struct arrlist_st *src);
 
-int array_list_isempty(struct arrlist_st *list);
+int array_list_combine(struct arrlist_st *dest, struct arrlist_st *src)
+{
+    int i;
+    if(dest == NULL || src == NULL)
+        return -EINVAL;
 
-int array_list_set_empty(struct arrlist_st *list);
-*/
+    if(dest->data == NULL || src->data == NULL)
+        return -EINVAL;
+        
+    if(dest->lenth - dest->last < src->last)
+        return -ENOSPC;
+    
+    for(i = 0; i < src->last; i++) {
+        dest->data[i+dest->last] = src->data[i];
+    }
+    dest->last += src->last;
+    return 0;
+}
+
+int array_list_isempty(struct arrlist_st *list)
+{
+    if(list == NULL)
+        return -EINVAL;
+    
+    return !(list->last > 0);
+}
+
+int array_list_set_empty(struct arrlist_st *list)
+{
+    if(list == NULL)
+        return -EINVAL;
+
+    return (list->last = 0);
+
+}
 
 void array_list_release(struct arrlist_st **list)
 {

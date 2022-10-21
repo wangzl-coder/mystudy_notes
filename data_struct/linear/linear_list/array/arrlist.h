@@ -24,6 +24,8 @@ int array_list_isempty(struct arrlist_st *list);
 
 int array_list_set_empty(struct arrlist_st *list);
 
+void array_list_display(struct arrlist_st *list);
+
 void array_list_release(struct arrlist_st **list);
 
 
