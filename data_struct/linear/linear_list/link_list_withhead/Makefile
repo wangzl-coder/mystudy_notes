@@ -1,12 +1,10 @@
 CC ?= gcc
+TARGET := weather
+OBJS := main.o weather_list.o
 
-TARGET := arrlist
-
-OBJS += main.o arrlist.o
 
 
 INCLUDE += ./
-
 CFLAGS += -I $(INCLUDE)
 
 
