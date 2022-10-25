@@ -1,6 +1,6 @@
 CC ?= gcc
-TARGET := weather
-OBJS := main.o weather_list.o
+TARGET := list
+OBJS := main.o weather_list.o list.o
 
 
 

@@ -1,4 +1,6 @@
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 #include "list.h"
 
 
@@ -6,11 +8,11 @@ node_head *list_init_head(int size)
 {
     node_head *head = NULL;
     if(size <= 0)
-        return -EINVAL;
+        return NULL;
 
     head = malloc(sizeof(node_head));
     if(head == NULL)
-        return -ENOMEM;
+        return NULL;
 
     head->size = size;
     head->head_node.data = NULL;
@@ -41,7 +43,7 @@ int list_add_head(node_head *head, void *data)
 
 int list_add_tail(node_head *head, void *data)
 {
-    node new_node, *last = NULL;
+    node *new_node, *last = NULL;
     if(head == NULL || data == NULL)
        return -EINVAL;
 
@@ -82,9 +84,27 @@ int list_delete_head(node_head *head)
     return 0;
 }
 
+int list_update_node(node_head *head, node *unode, void *data)
+{
+    node *upnode;
+    if(head == NULL || unode == NULL || data == NULL)
+        return -EINVAL;
+    
+    upnode = head->head_node.next;
+    for(upnode = head->head_node.next; upnode != NULL; upnode = upnode->next) {
+        if(upnode == unode) {
+            memcpy(upnode->data, data, head->size);
+            break;
+        }   
+    }
+    if(upnode == NULL)
+        return -EINVAL;
+    return 0;
+}
+
 int list_delete_tail(node_head *head)
 {
-    node *last, pre = NULL;
+    node *last, *pre = NULL;
 
     last = head->head_node.next;
     if(last != NULL) {
@@ -107,7 +127,7 @@ void list_release(node_head **head)
 {
     node *curr, *next = NULL;
     if(head == NULL)
-        return -EINVAL;
+        return;
     
     for(curr = (*head)->head_node.next; curr != NULL; curr = next) {
         next = curr->next;
