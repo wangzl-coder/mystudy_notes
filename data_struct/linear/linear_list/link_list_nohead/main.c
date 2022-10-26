@@ -33,31 +33,35 @@ static int list_nohead_test()
     return ret;
 }
 
+/* 单环链下的约瑟夫问题 */
 int list_loop_jose(int total, int num, int *winner)
 {
-    int i, kill_num = 0;
+    int i, kill_num = 0, game_over = 0;
     struct node_st *fman = NULL;
-    struct node_st *curr_man;
-    for(i = 0; i < total; i++) {
+    struct node_st *curr_man = NULL;
+    for(i = 0; i < total; i++) {                                /* 尾插排队 */
         loop_list_insert(&fman, 1 + i, INSERT_TAIL);
     }
-    i  = 1; //初始化报数
+    i  = 1;                                                     /* 初始化报数 */
     loop_list_display(fman);
     loop_list_cycle_get(fman, curr_man) {
-        if(data_of_node(curr_man) == 0) {   //已经淘汰，跳过
+        if(data_of_node(curr_man) == 0) {                       /* 已经淘汰，跳过 */
             continue;
-        } else if(data_of_node(curr_man) != i) {
-            loop_list_update_data(fman, curr_man, i); //更新报数
-        }
-        if(i == num) {     //淘汰一名
-            loop_list_update_data(fman, curr_man, 0); //设为淘汰状态
-            kill_num ++;
-            if(kill_num == (total -1)) {
-                
+        } else {
+            if(game_over) {                                     /* 已经结束，当前找到winner */
+                *winner = data_of_node(curr_man);
+                break;
             }
-            i = 1;
-        } else
-            i++;
+            if(i == num) {                                      /* 淘汰一名，重新报数 */
+                i = 0;
+                kill_num ++;
+                loop_list_update_data(fman, curr_man, 0);       /* kill掉 */
+                if(kill_num == (total - 1)) {                   /* 剩下一名，game over */
+                    game_over = 1;
+                }
+            }
+        }
+        i++;                                                    /* 继续往后报数 */
     }
 
     loop_list_release(&fman);
@@ -68,6 +72,7 @@ int main()
     int ret;
     int winner;
 //    ret = list_nohead_test();
-    ret = list_loop_jose(8, 3, &winner);
+    ret = list_loop_jose(6, 4, &winner);
+    printf("winner is %d \r\n", winner);
     exit(ret);
 }

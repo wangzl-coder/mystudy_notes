@@ -4,8 +4,6 @@
 #include "loop_list.h"
 
 
-#define loop_list_cycle_get(h_node, curr_node)  \
-            for(curr_node = h_node; ; curr_node = curr_node->next)
 
 int loop_list_insert(struct node_st **h_node, int data, insert_mod mode)
 {
@@ -54,10 +52,10 @@ int loop_list_update_data(struct node_st *h_node, struct node_st *up_node, int d
 }
 
 
-void *data_of_node(struct node_st *node)
+int data_of_node(struct node_st *node)
 {
     if(node == NULL)
-        return NULL;
+        return -1;
 
     return node->data;
 }
