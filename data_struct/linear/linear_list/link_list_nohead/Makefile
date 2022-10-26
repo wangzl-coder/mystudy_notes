@@ -1,6 +1,6 @@
 CC ?= gcc
-TARGET := student
-OBJS := main.o stu_list.o
+TARGET := main
+OBJS := main.o stu_list.o loop_list.o
 
 
 

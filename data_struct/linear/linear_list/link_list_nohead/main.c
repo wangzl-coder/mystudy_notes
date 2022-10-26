@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include "stu_list.h"
+#include "loop_list.h"
+#include <stdlib.h>
 
 
-int main()
-{
+static int list_nohead_test()
+{   
     int i, ret;
     struct stu_node *pstu_node = NULL;
     struct student_st stu[] = {
@@ -28,4 +30,44 @@ int main()
     puts("-----------------------------------");
     student_info_display(pstu_node);
     students_release(&pstu_node);
+    return ret;
+}
+
+int list_loop_jose(int total, int num, int *winner)
+{
+    int i, kill_num = 0;
+    struct node_st *fman = NULL;
+    struct node_st *curr_man;
+    for(i = 0; i < total; i++) {
+        loop_list_insert(&fman, 1 + i, INSERT_TAIL);
+    }
+    i  = 1; //初始化报数
+    loop_list_display(fman);
+    loop_list_cycle_get(fman, curr_man) {
+        if(data_of_node(curr_man) == 0) {   //已经淘汰，跳过
+            continue;
+        } else if(data_of_node(curr_man) != i) {
+            loop_list_update_data(fman, curr_man, i); //更新报数
+        }
+        if(i == num) {     //淘汰一名
+            loop_list_update_data(fman, curr_man, 0); //设为淘汰状态
+            kill_num ++;
+            if(kill_num == (total -1)) {
+                
+            }
+            i = 1;
+        } else
+            i++;
+    }
+
+    loop_list_release(&fman);
+}
+
+int main()
+{
+    int ret;
+    int winner;
+//    ret = list_nohead_test();
+    ret = list_loop_jose(8, 3, &winner);
+    exit(ret);
 }
