@@ -10,6 +10,7 @@ list_head *list_head_init(int size)
     
     if(head != NULL) {
         head->size = size;
+        head->node.data = NULL;
         head->node.next = &head->node;
         head->node.prev = &head->node;
     }
@@ -74,6 +75,32 @@ int list_insert_tail(list_head *head, void *data)
     head->node.prev = new;
     */
     list_insert(head->node.prev, new, &head->node);
+}
+
+void list_traverse_by_op(list_head *head, traver_op op)
+{
+    list_node *curr;
+    if(head == NULL || op == NULL)
+        return ;
+
+    for(curr = head->node.next; curr != &head->node; curr = curr->next) {
+        op(curr->data);
+    }
+    return ;
+}
+
+
+list_node *list_query_by_flag(list_head *head, void *flag, query_op op)
+{
+    list_node *curr_node;
+    if(head == NULL || flag == NULL || op == NULL)
+        return NULL;
+    
+    for(curr_node = head->node.next; curr_node != &head->node; curr_node = curr_node->next) {
+        if(op(flag, curr_node->data))
+            break;
+    }
+    return curr_node;
 }
 
 static int list_delete(list_node *delete)

@@ -7,6 +7,10 @@
 
 #define data_for_node(node)     (node->data)
 
+typedef void(*traver_op)(void *data);
+typedef int(*query_op)(void *flag, void *data);
+
+
 typedef struct list_node_st{
     void *data;
     struct list_node_st *next;
@@ -27,6 +31,8 @@ int list_insert_tail(list_head *head, void *data);
 int list_delete_head(list_head *head);
 
 int list_delete_tail(list_head *head);
+
+void list_traverse_by_op(list_head *head, traver_op op);
 
 int list_update_node(list_head *head, list_node *node, void *data);
 
