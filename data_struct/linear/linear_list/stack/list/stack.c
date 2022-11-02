@@ -1,12 +1,11 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 #include "stack.h"
 
 lstack_t *list_stack_init(void)
 {
-    lstack_t *stack = NULL;
-    if(size <= 0)
-        return NULL;
-
-    stack = malloc(sizeof(lstack_t));
+    lstack_t *stack = malloc(sizeof(lstack_t));
     if(!stack) {
         INIT_LIST_HEAD(stack->head_node);
     }
@@ -28,14 +27,42 @@ int list_stack_push(lstack_t *stack, void *data)
 
 void *list_stack_pop(lstack_t *stack)
 {
-    
+    void *data = NULL;
+    struct node_head *node = NULL;
+    stack_node *pop_stack;
+
     if(stack == NULL)
         return NULL;
 
-    
-
+    node = list_delfetch_head(&stack->head_node);
+    if(node != NULL) {
+        pop_stack = lstack_by_node(node);
+        data = pop_stack->data;
+        free(pop_stack);
+    }
+    return data;
 }
 
-int list_stack_isempty(lstack_t *);
+int list_stack_isempty(lstack_t *stack)
+{
+    if(stack == NULL)
+        return -EINVAL;
+    return list_is_empty(&stack->head_node);
+}
 
-int list_stack_release(lstack_t *);
+void list_stack_release(lstack_t *stack)
+{
+    struct node_head *node = NULL;
+    stack_node *pop_stack;
+    if(stack == NULL)
+        return;
+    while((node = list_delfetch_head(&stack->head_node)) != NULL) {
+        int a;
+        pop_stack = lstack_by_node(node);
+        a = *(int *)pop_stack->data;
+        printf("%d \r\n", a);
+        free(pop_stack);
+        node = NULL;
+    }
+    free(stack);
+}

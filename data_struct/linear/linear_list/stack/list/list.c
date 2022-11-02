@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <errno.h>
 #include "list.h"
 
 int list_insert_head(struct node_head *head, struct node_head *new)

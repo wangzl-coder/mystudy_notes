@@ -1,7 +1,7 @@
 #ifndef LIST_H__
 #define LIST_H__
 
-#define INIT_LIST_HEAD(head) head->next = NULL
+#define INIT_LIST_HEAD(head) head.next = NULL
 
 struct node_head{
     struct node_head *next;
