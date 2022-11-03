@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stack.h"
-
+#include "calculator.h"
 
 
 static int list_stack_simple_demo()

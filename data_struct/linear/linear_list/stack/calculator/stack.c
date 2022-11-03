@@ -6,7 +6,7 @@
 lstack_t *list_stack_init(void)
 {
     lstack_t *stack = malloc(sizeof(lstack_t));
-    if(!stack) {
+    if(stack != NULL) {
         INIT_LIST_HEAD(stack->head_node);
     }
     return stack;
