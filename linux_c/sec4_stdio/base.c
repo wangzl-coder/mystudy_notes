@@ -84,4 +84,84 @@
 5 标准IO的效率：
         
 
+6 二进制IO
+    a. size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);       
+        size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+    b.两种常用形式  
+        （1）将浮点数组第2-5个元素写到文件
+            float data[10];
+            if(fwrite(&data[2], sizeof(float), 4, fp) != 4)
+                error();
+        （2）结构体写文件
+            struct {
+                short count;
+                long total;
+                char name[20];
+            }item;
+            if(fwrite(&item, sizeof(item), 1, fp) != 1)
+                error();
+    c. 出错判断
+        fread：返回值小于nmemb，标识到文件尾或出错，需用ferror()或feof()判断
+        fwrite：返回值小于nmemb，出错
+    d. 基本问题：异构系统间的读写数据，大小端，结构体对齐等问题
+
+7 定位流：
+    a. long ftell(FILE *fp);
+        off_t ftello(FILE *fp);
+
+    b. int fseek(FILE *fp, long offset, int whence);
+        int fseeko(FILE *fp, off_t offset, int whence);
+        @whence: SEEK_CUR, SEEK_SET, SEEK_END
+    
+    c. void rewind(FILE *fp);
+    
+    d.int fgetpos(FILE *stream, fpos_t *pos);
+        int fsetpos(FILE *stream, const fpos_t *pos);
+
+8 格式化I/O
+    a. 格式化输出
+        int printf(const char *format, ...);
+        int fprintf(FILE *stream, const char *format, ...);
+        int dprintf(int fd, const char *format, ...);
+        int sprintf(char *str, const char *format, ...);
+        int snprintf(char *str, size_t size, const char *format, ...);
+
+    b.格式化输入
+        int scanf(const char *format, ...);
+        int fscanf(FILE *stream, const char *format, ...);
+        int sscanf(const char *str, const char *format, ...);
 #endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+
+static void getc_copy(void)
+{
+    int c;
+    while((c = getc(stdin)) != EOF)
+        if(putc(c, stdout) == EOF)
+            fprintf(stderr, "putc failed \r\n");
+   
+    if(ferror(stdin))
+        fprintf(stderr, "getc failed \r\n");
+}
+
+static void fgets_copy()
+{
+    char buf[1024];
+
+    while(fgets(buf, 1024, stdin) != NULL)
+        if(fputs(buf, stdout) == EOF)
+            fprintf(stderr, "fputs failed \r\n");
+
+    if(ferror(stdin))
+        fprintf(stderr, "fgets failed \r\n");
+
+}
+
+int main(void) 
+{
+
+    exit(0);
+}
