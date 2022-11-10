@@ -130,6 +130,17 @@
         int scanf(const char *format, ...);
         int fscanf(FILE *stream, const char *format, ...);
         int sscanf(const char *str, const char *format, ...);
+
+9 临时文件(demo_tmpfile)
+    a. char *tmpnam(char *ptr);
+        产生唯一路径名
+        @ptr: NULL--> 静态区重写
+                no NULL --> L_tmpnam长度数组
+    
+        FILE *tmpfile(void);
+        相当于：tmpname() --> fopen() --> unlink()
+
+
 #endif
 
 #include <stdio.h>
@@ -160,8 +171,55 @@ static void fgets_copy()
 
 }
 
+static void demo_tmpfile(void)
+{
+    char name[L_tmpnam];
+    char line[1024];
+    FILE *fp;
+    FILE *fp1;
+    int c;
+
+    printf("%s \r\n", tmpnam(NULL));
+    tmpnam(name);
+    printf("%s \r\n", name);
+    fp = fopen(name, "w+");
+    if(fp == NULL) {
+        fputs("open failed", stderr);
+        return;
+    }
+    unlink(name);
+    fputs("hello world \r\n", fp);
+    rewind(fp);
+    fp1 = tmpfile();
+    if(fp1 == NULL) {
+        fputs("fp1 create failed", stderr);
+        return;
+    }
+    while(fgets(line, sizeof(line), fp) != NULL) {
+        if(fputs(line, fp1) == EOF) {
+            fprintf(stderr, "puts to fp1 failed \r\n");
+            break;
+        }
+    }
+    if(ferror(fp))
+        fprintf(stderr, "read fp failed \r\n");
+    
+//    fflush(fp1);
+//    rewind(fp1);
+    fseek(fp1, 0, SEEK_SET);
+    while((c = getc(fp1)) != EOF) {
+        if(putc(c, stdout) == EOF) {
+            fputs("put stdout failed", stderr);
+            break;
+        }
+    }
+
+    if(ferror(fp1))
+        fputs("read char from fp1 failed \r\n", stderr);
+}
+
 int main(void) 
 {
-
+    demo_tmpfile();
     exit(0);
 }
