@@ -43,13 +43,34 @@
         （1）调用abort()，给自己发SIGABRT信号
         （2）当进程收到某些信号时，
         （3）最后一个线程对取消请求做出响应，延迟方式
+        
+        终止操作：关闭进程所有打开的描述符，释放其存储器
+    
+    b. 进程状态(ps), 
+        R(runnable,on run queue)-->运行:正在运行或在运行队列中等待
+        S(sleeping)-->中断:休眠中，受阻，在等待某个条件形成的信号或接收到信号
+        D(uninterruptible sleep,usually IO)-->不可中断：收到信号不唤醒和不可运行，进程必须等待直到由中断发生
+        Z(Zombie)-->僵死：进程已终止，直到父进程调用wait4()系统调用后释放
+        T(traced or stopped)-->停止：进程收到SIGSTOP，SIGSTP，SIGTIN，SIGTOU信号后停止运行
+    
+    c. 退出状态和终止状态
+        子进程将退出状态传参给终止函数（exit，_exit,_Eixt），内核将退出状态转为终止状态，父进程通过wait或waitpid取得
 
+    d. 孤儿进程与进程领养；
+        父进程先于子进程终止，子进程成为孤儿进程，此时被init进程领养，大致过程：一个进程终止时，内核检查所有活动进程，判断是否
+            是正要终止进程的子进程，如果是，将其父进程ID改为1（init进程ID）。
+
+    e. 僵尸进程：
+        子进程先于父进程终止，内核为每个终止子进程保存了一定量的信息（进程ID，终止状态，cpu时间总量），当父进程wait或waitpid时
+            可以得到这些信息，内核可以释放终止进程使用的存储区，关闭其所有打开文件。如果子进程终止，父进程没有进行善后处理（wait，
+            waitpid），则子进程被称为僵尸进程（Z），应当避免此情况。被init领养的进程不会变成僵尸进程。
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 static void demo_pid()
 {
     printf("pid: %d\n",getpid());
@@ -93,7 +114,7 @@ static void demo_fork_filshare()
         fprintf(stderr, "fork failed \r\n");
         return ;
     } 
-   // fp = fopen("tmp.file", "w+");   /* a+yy */
+   // fp = fopen("tmp.file", "w+");   /* a+ */
     if(fp == NULL) {
         perror(NULL);
     }
@@ -133,12 +154,67 @@ static void demo_vfork()
     _exit(0);
 }
 
+static void demo_fork_exit()
+{
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        fprintf(stderr, "fork failed \r\n");
+        return ;
+    } else if(pid == 0) {
+        printf("child process %d pause <--- %d\r\n", getpid(), getppid());
+        //pause();
+        exit(0);
+    }else {
+        int status;
+        sleep(10);
+        //printf("parent process signal \r\n");
+        //kill(pid, SIGINT);
+        printf("%d wait \r\n", getpid());
+        wait(&status);
+        printf("status = %d \r\n",status);
+    }
+}
+
+static void demo_fork_zombie()
+{
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        fprintf(stderr, "fork failed \r\n");
+        return ;
+    } else if(pid == 0) {
+        printf("child %d exit <-- %d \r\n", getpid(), getppid());
+        exit(0);
+    }
+    sleep(10);
+    printf("parent %d exit \r\n", getpid());
+}
+
+static void demo_fork_orphan()
+{
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        fprintf(stderr, "fork failed \r\n");
+        return ;
+    } else if(pid == 0) {
+        printf("child %d <-- %d \r\n", getpid(), getppid());
+        sleep(10);
+
+        printf("child %d exit <--- %d\r\n", getpid(), getppid());
+        exit(0);
+    }
+    sleep(2);
+    printf("parent %d exit<--%d \r\n", getpid(), getppid());
+}
+
 int main()
 {
 //    demo_pid();
 //    while(1);
 //    demo_fork_iobuf();
 //    demo_fork_filshare();
-    demo_vfork();
+//    demo_vfork();
+//    demo_fork_exit();
+//    demo_fork_zombie();
+    demo_fork_orphan();
     exit(0);
 }
