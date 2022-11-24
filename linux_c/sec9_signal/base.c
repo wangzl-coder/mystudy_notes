@@ -31,12 +31,48 @@
     4 不可靠信号：信号的丢失和不确定性
     
     5 信号响应过程：mask和pending Bit
-
     
+    6 中断的系统调用
+        a. 低速系统调用和其他系统调用（阻塞和非阻塞）：
+        b. 中断系统调用：进程正在执行一个低速系统调用，阻塞期间捕捉到一个信号，该系统调用将被打断不再执行(被唤醒)，返回出错，并将
+            errno设为EINTER
+            while((len = read(fd, buf, BUFFSIZE)) < 0) {
+                if(errno == EINTER)
+                    /* goto again */
+                    continue;
+                /* handler other errnors */
+            }
+        c. select 和 poll
+    
+    7 可重入函数
+        a. 不可重入：
+            （1）使用静态数据结构
+            （2）调用malloc和free
+            （3）标准IO函数，标准IO库很多实现都以不可重入方式使用全局数据结构
+        b. 信号处理程序中不能出现不可重入函数的原因：由于信号的不可预知性，信号处理程序过程中捕捉到同一个信号时，此时会产生返回给
+            正常调用者的信息可能被返回给信号处理程序的信息覆盖
+        c. 信号处理程序中避免出现不可重入函数，其结果是不可预见的(no_reentrancy_test())
+    
+    8 可靠信号术语和语义
+        
+    9 kill和raise函数
+        int kill(pid_t pid, int signo);
+        int raise(int signo);
+
+    10 alarm 和 pause函数
+        unsigned int alarm(unsigned int seconds);
+        int pause(); 返回-1, 并将errno 设置为EINTR,注：执行了信号处理程序并从其返回时pause才返回
+
+        
+
 #endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 static volatile int value = 0;
 
@@ -49,8 +85,99 @@ static void user_handle(int signum)
         printf("received signal SIGUSR2 %d \r\n", SIGUSR2);
 }
 
+static void sigalrm_handler(int signum)
+{
+    struct passwd *rootptr;
+    alarm(1);
+    if((rootptr = getpwnam("root")) == NULL)
+        fprintf(stderr, "getpwname \"root \" failed \r\n");
+}
+
+static int no_reentrancy_test()
+{
+    int ret = 0;
+    struct passwd *ptr;
+    signal(SIGALRM, sigalrm_handler);
+    alarm(1);
+    for(;;) {
+        if((ptr = getpwnam("wangzl")) == NULL) {
+            fprintf(stderr, "getpwdname \"wangzl\" failed \r\n");
+            ret = -1;
+            break;
+        }
+        if(strcmp(ptr->pw_name, "wangzl") != 0) {
+            fprintf(stderr, "warnning : return value corrupteed, pwname = %s \r\n", ptr->pw_name);
+            ret = -1;
+            break;
+        }
+        printf("getpwdnam(\"wangzl\") = %s \r\n", ptr->pw_name);
+    }
+    return ret;
+}
+
+static void sig_alrm(int signum)
+{
+    /* nothing to do, just return to wake up the pause */
+    printf("sigalrm received \r\n");
+}
+
+/*注意几个问题：
+ * （1）alarm之前已经设置闹钟值-> a.返回值小于参数，等待闹钟超时；b.大于此参数，在sleep1返回之前复位此闹钟
+ * （2）SLALRM配置之前已经被更改，需要保存返回值，返回前恢复
+ * （3）第一次调用alarm和调用pause之间有一个竞争条件，繁忙的系统中，可能alarm在调用pause之前超时并调用信号处理程序，此时如果没有
+ *      捕获到其他信号，调用者将被永远挂起
+ *
+ * */
+static int sleep1(unsigned int nsec)
+{
+    if(signal(SIGALRM, sig_alrm) == SIG_ERR)
+        return (nsec);
+    alarm(nsec);
+    pause();
+    return alarm(0);
+}
+
+/* 问题(1)解决*/
+static int sleep2(unsigned int nsec)
+{
+    unsigned int prev_sec;
+    if(signal(SIGALRM, sig_alrm) == SIG_ERR)
+        return (nsec);
+    prev_sec = alarm(nsec);
+    if(prev_sec > 0 && prev_sec < nsec) {
+        alarm(prev_sec);
+        pause();                /* wait last timer out */
+        alarm(nsec-prev_sec);       /*reararm for remainder time*/
+    }
+    pause();                    /* our timer out */
+    if(prev_sec > nsec) {       /* reserve other timer */
+        alarm(prev_sec - nsec);
+    }
+}
+/* 问题(2)解决 */
+static int sleep3(unsigned int nsec)
+{
+    unsigned int prev_sec;
+    void (*prev_handler)(int);
+    if((prev_handler = signal(SIGALRM, sig_alrm)) == SIG_ERR)
+        return (nsec);
+    prev_sec = alarm(nsec);
+    if(prev_sec > 0 && prev_sec < nsec) {
+        alarm(prev_sec);
+        pause();                /* wait last timer out */
+        alarm(nsec-prev_sec);       /*reararm for remainder time*/
+    }
+    pause();                    /* our timer out */
+    if(signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
+        fprintf(stderr, "reserved sigalrm handler failed \r\b");
+    if(prev_sec > nsec) {       /* reserve other timer */
+        alarm(prev_sec - nsec);
+    }
+}
+
 int main()
-{   
+{
+#if 0
     if(signal(SIGUSR1, user_handle) == SIG_ERR)
         fprintf(stderr, "register SIGUSR1 failed \r\n");
     if(signal(SIGUSR2, user_handle) == SIG_ERR)
@@ -59,5 +186,10 @@ int main()
         pause();
         printf("value = %d \r\n", value);
     }
+#endif
+//  no_reentrancy_test();
+//    sleep1(2);
+    alarm(1);
+    sleep2(2);
     exit(0);
 }
