@@ -3,7 +3,6 @@
 
 #define TOKEN_BUCKET_MAX_COUNT 1024
 
-
 typedef void tokbct_t;
 
 tokbct_t *token_bucket_init(unsigned int, unsigned int);
