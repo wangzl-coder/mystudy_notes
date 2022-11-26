@@ -73,8 +73,12 @@
 #include <string.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <setjmp.h>
+#include <sys/wait.h>
+
 
 static volatile int value = 0;
+static jmp_buf env_alrm;
 
 static void user_handle(int signum)
 {
@@ -118,7 +122,6 @@ static int no_reentrancy_test()
 static void sig_alrm(int signum)
 {
     /* nothing to do, just return to wake up the pause */
-    printf("sigalrm received \r\n");
 }
 
 /*注意几个问题：
@@ -163,16 +166,65 @@ static int sleep3(unsigned int nsec)
         return (nsec);
     prev_sec = alarm(nsec);
     if(prev_sec > 0 && prev_sec < nsec) {
+        if(prev_handler != SIG_DFL && signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
+            fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
         alarm(prev_sec);
         pause();                /* wait last timer out */
+        if(signal(SIGALRM, sig_alrm) == SIG_ERR)        /* reserve last handler */
+            fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
         alarm(nsec-prev_sec);       /*reararm for remainder time*/
     }
     pause();                    /* our timer out */
-    if(signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
-        fprintf(stderr, "reserved sigalrm handler failed \r\b");
+    if(prev_handler != SIG_DFL && signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
+        fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
     if(prev_sec > nsec) {       /* reserve other timer */
         alarm(prev_sec - nsec);
     }
+}
+
+/*
+ * 问题3解决策略,使用setjmp和longjmp
+ *  考虑隐藏问题：如果SIGALRM中断其他信号处理程序，longjmp将会提前结束它
+ * */
+static void sig_alrmjmp(int signum)
+{
+    printf("%d -> SINALRM received \r\n", getpid());
+    longjmp(env_alrm, 1);   //jump with no pause
+}
+
+static int sleep4(unsigned int nsec)
+{
+    unsigned int prev_sec;
+    void (*prev_handler)(int);
+    if((prev_handler = signal(SIGALRM, sig_alrmjmp)) == SIG_ERR)
+        return (nsec);
+    prev_sec = alarm(nsec);
+    if(prev_sec > 0 && prev_sec < nsec) {
+        if(prev_handler != SIG_DFL && signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
+            fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
+        alarm(prev_sec);
+        pause();                /* wait last timer out */
+        if(signal(SIGALRM, sig_alrmjmp) == SIG_ERR)        /* reserve last handler */
+            fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
+        alarm(nsec-prev_sec);       /*reararm for remainder time*/
+    }
+    if(setjmp(env_alrm) == 0)       /* has received SIGALRM, don't pause*/
+        pause();                    /* our timer out */
+    printf("%d -> timeout \r\n", getpid());
+    if(prev_handler != SIG_DFL && signal(SIGALRM, prev_handler) == SIG_ERR)        /* reserve last handler */
+        fprintf(stderr, "Warnning: reserved sigalrm handler failed \r\b");
+    if(prev_sec > nsec) {       /* reserve other timer */
+        alarm(prev_sec - nsec);
+    }
+}
+
+static void sig_interrupt_handler(int signum)
+{
+    int i, j;
+    printf("%d->SIGINT received \r\n", getpid());
+    for(i = 0; i <300000; i++)      /* longer than 2 seconds */
+        for(j = 0; j < 4000; j++)
+            value++;
 }
 
 int main()
@@ -186,10 +238,29 @@ int main()
         pause();
         printf("value = %d \r\n", value);
     }
-#endif
-//  no_reentrancy_test();
-//    sleep1(2);
+    no_reentrancy_test();
+    sleep1(2);
     alarm(1);
-    sleep2(2);
+    sleep3(2);
+#endif
+    /* sleep4 test start*/
+    pid_t pid;
+    if((pid = fork()) < 0) {
+        fprintf(stderr, "fork failed \r\n");
+    } else if(pid == 0) {       /* 注：例程不合理，不确定调度顺序，需要IPC操作 */
+        printf("child : %d \r\n", getpid());
+        if(signal(SIGINT, sig_interrupt_handler) == SIG_ERR)
+            fprintf(stderr, "Warnning : signal SIGINT failed \r\n");
+        sleep4(2);
+        printf("%d -> value = %d \r\n", getpid(), value);
+    } else {
+        printf("parent : %d \r\n", getpid());
+        sleep4(1);
+        printf("signal SIGINT to %d \r\n", pid);
+        kill(pid, SIGINT);
+        waitpid(pid, NULL, 0);
+        printf("%d -> value = %d \r\n", getpid(), value);
+    }
+    /* sleep4 test end */
     exit(0);
 }
