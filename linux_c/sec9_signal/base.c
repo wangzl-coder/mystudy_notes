@@ -62,7 +62,8 @@
     10 alarm 和 pause函数
         unsigned int alarm(unsigned int seconds);
         int pause(); 返回-1, 并将errno 设置为EINTR,注：执行了信号处理程序并从其返回时pause才返回
-
+        a. sleep实现和考虑(sleep1(), sleep2(), sleep3(), sleep4())
+        b. 超时限制的io调用(demo_read_timeout)
         
 
 #endif
@@ -218,6 +219,70 @@ static int sleep4(unsigned int nsec)
     }
 }
 
+static void sigalrm_handle_uncorrect(int signum)
+{
+    printf("sigalrm received \r\n");
+}
+/*
+ * 考虑两个问题：
+ * （1）在alarm(sec)和read间存在竞争条件，可能存在时钟闹钟时间到达还未调度到read
+ * （2）当前系统调用是自动重启动的（例如当前从标准输入读），则从SIGALRM信号处理
+ *      程序返回时，此系统调用将不会被中断，而会继续执行
+ *  解决方案：
+ *      采用setjmp和longjmp
+ * */
+
+#define MAXLINE (2048)
+static int demo_read_timeout_uncorrect(unsigned int sec)
+{
+    int n;
+    char line[MAXLINE];
+    
+    if(signal(SIGALRM, sigalrm_handle_uncorrect) == SIG_ERR) {
+        fprintf(stderr, "signal SIGALRM failed \r\n");
+        return -1;
+    }
+    alarm(sec);
+    if((n = read(STDIN_FILENO, line, MAXLINE)) < 0) {
+        fprintf(stderr, "read from stdin failed \r\n");
+        return -1;
+    }
+    alarm(0);
+    write(STDOUT_FILENO, line, n);
+    return 0;
+}
+
+static jmp_buf jmpenv;
+
+static void sigalrm_handle_correct(int signum)
+{
+    longjmp(jmpenv, 1);
+}
+
+static int demo_read_timeout_correct(int sec)
+{
+    int n;
+    char line[MAXLINE];
+    
+    if(signal(SIGALRM, sigalrm_handle_correct) == SIG_ERR) {
+        fprintf(stderr, "resiger SIGALRM failed \r\n");
+        return -1;
+    }
+    if(setjmp(jmpenv) != 0) {
+        printf("read timeout ! \r\n");
+        return -1;
+    }
+    alarm(sec);
+    if((n = read(STDIN_FILENO, line, MAXLINE)) < 0) {
+        fprintf(stderr, "read from stdin failed \r\n");
+        return -1;
+    }
+    alarm(0);
+    write(STDOUT_FILENO, line, n);
+    return 0;
+}
+
+
 static void sig_interrupt_handler(int signum)
 {
     int i, j;
@@ -243,6 +308,7 @@ int main()
     alarm(1);
     sleep3(2);
 #endif
+#if 0
     /* sleep4 test start*/
     pid_t pid;
     if((pid = fork()) < 0) {
@@ -262,5 +328,8 @@ int main()
         printf("%d -> value = %d \r\n", getpid(), value);
     }
     /* sleep4 test end */
+#endif
+    //demo_read_timeout_uncorrect(6);
+    demo_read_timeout_correct(6);
     exit(0);
 }
