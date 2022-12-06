@@ -219,6 +219,49 @@ static int sleep4(unsigned int nsec)
     }
 }
 
+/*
+ * 另一种方式，设置信屏蔽字与原子操作
+ * */
+static void sigalrm_sleep_handler(int signum)
+{
+    /* nothing to do . just return */
+}
+
+static unsigned int sleep5(unsigned int nseconds)
+{
+    struct sigaction act, oldact;
+    sigset_t newset, oldset, suspendset;
+    unsigned int unslept;
+    
+    if(sigemptyset(&newset) < 0 ) {
+        fprintf(stderr, "failed sigemptyset \r\n");
+        return 0;
+    }
+    if(sigaddset(&newset, SIGALRM) < 0) {
+        fprintf(stderr, "failed sigaddset \r\n");
+        return 0;
+    }
+    sigemptyset(&act.sa_mask);
+    act.sa_handler = sigalrm_sleep_handler;
+    act.sa_flags = 0;
+    if(sigaction(SIGALRM, &act, &oldact) < 0) {
+        fprintf(stderr, "failed to sigaction \r\n");
+        return 0;
+    }
+    sigprocmask(SIG_BLOCK, &newset, &oldset);
+    suspendset = oldset;
+    sigdelset(&suspendset, SIGALRM);
+    alarm(nseconds);
+    sigsuspend(&suspendset);
+
+    unslept = alarm(0);
+    sigaction(SIGALRM, &oldact, NULL);
+
+    sigprocmask(SIG_SETMASK, &oldset, NULL);
+    return unslept;
+}
+
+
 static void sigalrm_handle_uncorrect(int signum)
 {
     printf("sigalrm received \r\n");
@@ -330,6 +373,7 @@ int main()
     /* sleep4 test end */
 #endif
     //demo_read_timeout_uncorrect(6);
-    demo_read_timeout_correct(6);
+  //  demo_read_timeout_correct(6);
+    printf("%d \r\n", sleep5(5));
     exit(0);
 }
