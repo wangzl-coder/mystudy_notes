@@ -34,7 +34,8 @@
             (1) 调用线程一直阻塞，知道指定进程调用pthread_exit, 从启动例程中返回或者被取消，如果线程简单的从他的启动例程返回，则
             retval包含返回码，如果线程被取消，又retval指定的内存单元被设置为PTHREAD_CANCELED
             (2) 线程分离，pthread_join调用失败，返回EINVAL
-
+        
+        e. 获取线程退出状态问题：必须在调用者完成调用之后返回的指针仍然有效（demo_pthread_exit_err(demo_pthread_exit_err.c)）
 #endif
 
 #include <stdio.h>
