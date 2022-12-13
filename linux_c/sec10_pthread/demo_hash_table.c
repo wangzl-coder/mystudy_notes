@@ -27,7 +27,7 @@ struct foo *foo_alloc(int id)
     }
     fp->count = 1;
     fp->id = id;
-    if(pthread_mutex_init(&fp->f_mutex) != 0) {
+    if(pthread_mutex_init(&fp->f_mutex, NULL) != 0) {
         free(fp);
         return NULL;
     }
@@ -109,7 +109,7 @@ struct foo *foo_alloc(int id)
     }
     fp->count = 1;
     fp->id = id;
-    if(pthread_mutex_init(&fp->f_mutex)){
+    if(pthread_mutex_init(&fp->f_mutex, NULL)){
         fprintf(stderr, "Error: failed to init fp->f_mutex \r\n");
         free(fp);
         return NULL;
