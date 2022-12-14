@@ -1,3 +1,12 @@
+#if 0
+    1 超时锁：
+        int pthread_mutex_timedlock(pthread_mutex_t *restrict mutex, 
+                                    const struct timespec *restrict tsptr);
+    
+        @mutex: 要获取的锁
+        @tsptr : 指定超时时间，相对时间，表示在当前时间之前阻塞等待，
+        @ return : 成功获取锁，返回0。出错返回错误编号，返回ETIMEDOUT时表示阻塞超时
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
