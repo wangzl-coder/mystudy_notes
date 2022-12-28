@@ -15,4 +15,74 @@
 #endif
 
 /* demo :说明一种守护进程可以重新读其配置文件的方法 */
-":
+
+void *thread_func(void *arg)
+{
+    int err, signo;
+    for( ; ; ) {
+        err = sigwait(&mask, &signo);
+        if(err != 0) {
+            syslog(LOG_ERR, "sigwait failed ");
+            exit(1);
+        }
+        switch(signo) {
+            case SIGHUP:
+                syslog(LOG_INFO, "Re_reading configure file ");
+                reread();
+                break;
+            case SIGTERM:
+                syslog(LOG_INFO, "got SIGTERM, exiting");
+                exit(0);
+            default:
+                syslog(LOG_INFO, "unexpected signal %d \n", signo);
+        
+        }
+    }
+    return 0;
+}
+
+
+int main()
+{
+    int err;
+    pthread_t tid;
+    char *cmd;
+    struct sigaction sa;
+
+    if((cmd = strrchr(argv[0], '/')) == NULL)
+        cmd = argvv[0];
+    else 
+        cmd ++;
+
+    /* become a daemon */
+    daemonize(cmd);
+
+    /* make sure only one copy of the daemon is running */
+    if(already_running()) {
+        fprintf(stderr, "daemon already running \r\n");
+        exit(1);
+    }
+    
+    /* restore SIGHUP default and block all signals */
+    sa.sa_handler = SIG_DFL;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    if(sigaction(SIGHUP, &sa, NULL) < 0) {
+        fprintf(stderr, "sigaction failed \r\n");
+        exit(1);
+    }
+    sigfillset(&mask);
+    if((err = pthread_sigmask(SIG_BLOCK, &mask, NULL)) != 0) {
+        fprintf(stderr, "pthread_sigmask failed \r\n");
+        exit(1);
+    }
+    
+    /* create a thread to handle SIGHUP and SIGTERM */
+    err = pthread_create(&tid, NULL, thread_func, 0);
+    if(err != 0) {
+        fprintf(stderr, "pthread_create failed \r\n");
+        exit(1);
+    }
+    /* process with the reset of the daemon */
+    exit(0);
+}
