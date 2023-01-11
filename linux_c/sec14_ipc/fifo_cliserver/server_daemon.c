@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <dirent.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
@@ -85,6 +86,19 @@ static void abspath_diraction(char *abspath, int action)
         } 
     } else if(action == ACTION_REMOVE) {
         if(access(dir, F_OK) == 0) {
+            DIR *pdir;
+            struct dirent *pdirt;
+            if((pdir = opendir(dir)) == NULL) {
+                syslog(LOG_ERR, "open directory %s failed : %s \n", dir, strerror(errno));
+                exit(-1);
+            }
+            while((pdirt = readdir(pdir)) != NULL) {
+                if(remove(pdirt->d_name)) {
+                    syslog(LOG_ERR, "remove file %s failed \n", pdirt->d_name);
+                    exit(-1);
+                }
+            }
+            closedir(pdir);
             if(remove(dir)) {
                 syslog(LOG_ERR, "remove directory %s faild : %s \n", dir, strerror(errno));
                 exit(-1);
@@ -106,6 +120,7 @@ static void server_exit()
 static void server_response_by_request(char *request, char *response)
 {
     /* for test, just return self. it's unsafe */
+    syslog(LOG_INFO, "request : %s\n", request);
     strcpy(response, request);
 }
 
@@ -143,7 +158,6 @@ static void server_request_paser(struct server_t *server)
         syslog(LOG_ERR, "invalid msglen : %ld \n", msglen);
         return ;
     }
-    syslog(LOG_DEBUG, "msglen=%ld", msglen);
     /* get msg content */
     ptr += MSGLENDESC_BUF_LEN;
     memcpy(msgcont, ptr, msglen);
@@ -153,7 +167,7 @@ static void server_request_paser(struct server_t *server)
     ptr += msglen;
     if( (strlen(ptr) != strlen(MSG_TAIL)) || 
             (strncmp(ptr, MSG_TAIL, strlen(MSG_TAIL)) != 0) ) {
-        syslog(LOG_ERR, "client MSG_TAIL check failed %s\n", ptr);
+        syslog(LOG_ERR, "client MSG_TAIL check failed %ld-%s\n", strlen(ptr), ptr);
         return ;
     }
     /* msg paser */
@@ -193,7 +207,7 @@ static int server_create_conn(pid_t pid)
     PATH_BYPID(pid, clifipath);
     if(access(clifipath, F_OK) == 0)
         return -1;
-    if(!mkfifo(clifipath, SERVER_PID_MODE)) {
+    if(mkfifo(clifipath, SERVER_PID_MODE) != 0) {
         syslog(LOG_ERR, "mkfifo %s failed : %s\n", clifipath, strerror(errno));
         return -1;
     }
@@ -223,6 +237,7 @@ static void server_handler(struct server_t *server)
                     server->state = SSTATE_ERR;
                 break;
             }
+            server->sbuf[server->rlen] = 0;
             server->state = SSTATE_PASER;
             syslog(LOG_DEBUG, "%s", server->sbuf);
             break;

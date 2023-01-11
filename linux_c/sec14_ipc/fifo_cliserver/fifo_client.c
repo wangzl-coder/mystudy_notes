@@ -51,7 +51,7 @@ static int client_send_server(struct client_t *fclient, char *buf)
 
     sprintf(pidstr, "%ld\n", (long)fclient->pid);
     sprintf(msglenstr, "%ld\n", (long)strlen(buf));
-    msglen = strlen(MSG_HEAD) + strlen(MSG_TAIL) + MSG_PIDBUF_LEN + MSGLENDESC_BUF_LEN;
+    msglen = strlen(MSG_HEAD) + strlen(MSG_TAIL) + MSG_PIDBUF_LEN + MSGLENDESC_BUF_LEN + strlen(buf);
     msg = malloc(msglen);
     if(msg == NULL)
         return -ENOMEM;
@@ -92,7 +92,11 @@ static int client_connect_server(struct client_t *fclient)
 
 static void client_wait_response(struct client_t *fclient)
 {
-    read(fclient->cfd, fclient->resp, RESPBUFSIZE);
+    int len;
+    len = read(fclient->cfd, fclient->resp, RESPBUFSIZE);
+    if(len > 0) {
+        fclient->resp[len] = 0;
+    }
 }
 
 static int client_request_server(struct client_t *fclient, char *cont)
@@ -128,8 +132,8 @@ int main()
         exit(-1);
     }
     client_connect_server(fclient);
-    //client_request_server(fclient, "this is test client request!");
-    //printf("client get resp: --%s \r\n", fclient->resp);
+    client_request_server(fclient, "this is test client request!");
+    printf("client get resp: --%s \r\n", fclient->resp);
     client_disconn_server(fclient);
     client_destroy(fclient);
     exit(0);
