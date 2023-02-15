@@ -15,9 +15,10 @@
 #include "ftp_proto.h"
 
 
-#define FTP_SERVER_LOG "myftp_server"
-#define FTP_SPID_FILE "/tmp/myftp.pid"
-#define FTP_TMPFILE_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define FTP_SERVER_LOG      "myftp_server"
+#define FTP_SPID_FILE       "/tmp/myftp/myftp.pid"
+#define FTP_PIDFILE_MODE    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define FTP_TMPFILE_MODE    (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
 #define lock_file(fd) ({         \
     struct flock flck;          \
@@ -28,25 +29,47 @@
     fcntl(fd, F_SETLK, &flck);  \
 })
 
-static int ftp_server_sndcont(ftp_msg_t *svermsg)
+#define unlock_file(fd) ({      \
+    struct flock flck;          \
+    flck.l_type = F_UNLCK;      \
+    flck.l_start = 0;           \
+    flck.l_whence = SEEK_SET;   \
+    flck.l_len = 0;             \
+    fcntl(fd, F_SETLK, &flck);  \
+})
+
+static int ftp_server_sndcont(ftp_msg_t *svermsg, int msgid)
 {
     FILE *fp;
     char *path = svermsg->pathreq.fpath;
+    int ret = 0;
+    char unusedval = 0;
     if(path == NULL)
         return -EINVAL;
     if((fp = fopen(path, "r")) == NULL) {
         syslog(LOG_ERR, "failed to open %s: %s\n", path, strerror(errno));
         return -EINVAL;
     }
-    if(fseek(fp, 0, SEEK_END) < 0) {
-        syslog(LOG_ERR, "failed to fseek %s: %s\n", path, strerror(errno));
+    svermsg->msgtype = FTP_MSG_CONT;
+    while((svermsg->respcont.flen = fread(svermsg->respcont.fcont, 1, FCONTMAX, fp)) > 0) {
+        if((ret = msgsnd(msgid, svermsg->respcont.fcont, sizeof(struct file_cont_st) - sizeof(long), 0)) != 0) {
+            syslog(LOG_ERR, "msgsnd failed: %s\n", strerror(errno));
+            break;
+        }
+    }
+    if(ret || ferror(fp)) {
+        svermsg->msgtype = FTP_MSG_ERR;
+    } else if(feof(fp)) {
+        svermsg->msgtype = FTP_MSG_EOF;
+    } else {
+        syslog(LOG_ERR, "Warnning: Unknow Result! \n");
         return -EINVAL;
     }
-
-    if()
-    while() {
-
+    ret = msgsnd(msgid, &unusedval, sizeof(char), 0);
+    if(ret) {
+        syslog(LOG_ERR, "msgsnd type %ld failed : %s\n", svermsg->msgtype, strerror(errno));
     }
+    return ret;
 }
 
 static int ftp_server_start()
@@ -54,26 +77,25 @@ static int ftp_server_start()
     key_t key;
     int msgid;
     ftp_msg_t svermsg;
-
+    int ret = 0;
+    
     key = ftok(FTP_KEYPATH, FTP_KEYPROJ);
     if(key < 0) {
-        syslog(LOG_ERR, "file to key(%s,%d) error \n", FTP_KEYPATH, FTP_KEYPROJ);
+        syslog(LOG_ERR, "file to key(%s,%d) error: %s\n", FTP_KEYPATH, FTP_KEYPROJ, strerror(errno));
         return(key);
     }
     msgid = msgget(key, O_CREAT | FTP_TMPFILE_MODE);
     if(msgid < 0) {
         syslog(LOG_ERR, "msgget error \n");
-        return(msgid)
+        return(msgid);
     }
-    while(msgrcv(msgid, &svermsg, sizeof(svermsg) - sizeof(long), 0, 0) >= 0) {
-        switch(svermsg.msgtype) {
-            case FTP_MSG_PATH:
-                break;
-            default:
-                syslog(LOG_ERR, "receive unexpected msgtype: %ld \n", svermsg.msgtype);
-                break;
-        }
+    while((ret = msgrcv(msgid, &svermsg.pathreq, sizeof(svermsg) - sizeof(long), FTP_MSG_PATH, 0)) >= 0) {
+        ret = ftp_server_sndcont(&svermsg, msgid);
+        if(ret)
+            break;
     }
+    syslog(LOG_ERR, "msgrcv error: %s\n", strerror(errno));
+    return ret;
 }
 
 static int ftp_daemon_alreay()
@@ -81,7 +103,7 @@ static int ftp_daemon_alreay()
     int fd;
     char buf[10];
 
-    if((fd = open(FTP_SPID_FILE, O_RDWR | O_TRUNC | O_CREAT, FTP_PIDFILE_MODE)) < 0) {
+    if((fd = open(FTP_SPID_FILE, O_RDWR | O_CREAT, FTP_PIDFILE_MODE)) < 0) {        /* we cannot O_TRUNC, we have not check */
         syslog(LOG_ERR, "open %s failed : %s \n", FTP_SPID_FILE, strerror(errno));
         exit(-1);
     }
@@ -93,6 +115,7 @@ static int ftp_daemon_alreay()
         syslog(LOG_ERR, "lock file error \n");
         exit(1);
     }
+    ftruncate(fd, 0);
     snprintf(buf, sizeof(buf), "%ld", (long)getpid());
     write(fd, buf,strlen(buf));
     return(0);
@@ -160,6 +183,6 @@ int main(void)
         syslog(LOG_ERR, "server has already running \n");
         exit(-1);
     }
-    
+    ftp_server_start();
     exit(0);
 }

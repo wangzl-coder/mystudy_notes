@@ -1,7 +1,7 @@
 #ifndef FTP_PROTO_H__
 #define FTP_PROTO_H__
 
-#define FTP_KEYPATH "./ftp_keyfile"
+#define FTP_KEYPATH "/tmp/myftp/myftp_keyfile"
 #define FTP_KEYPROJ 'F'
 
 #define FPATHLEN (200)
@@ -11,6 +11,7 @@ enum ftp_msgtype_e{
     FTP_MSG_PATH = 0x01,
     FTP_MSG_CONT,
     FTP_MSG_EOF,
+    FTP_MSG_ERR,
 };
 
 struct req_path_st{
