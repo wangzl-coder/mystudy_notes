@@ -106,5 +106,44 @@
 
 
             6 遍历链表：
+                （1）基本方法：
+                struct list_head *p;
+                list_for_each(p, list) {        /* 遍历list节点 */
+                    ** = list_entry(p, struct **, list)     /* 通过节点地址找到数据结构地址 */
+                };
+                （2）可用的方法：
+                    list_for_each_entry(pos, head, member)
 
+static struct inotify_watch *inode_find_handle(struct inode *inode, struct inotify_handle *ih)
+{
+    struct inotify_watch *watch;
+
+    list_for_each_entry(watch, &inode->inotify_watches, i_list) {
+        if(wach->ih == ih)
+            return watch;
+    }
+}
+
+                （3）反向遍历链表（沿着prev遍历）：
+                    list_for_each_entry_reverse(pos, head, member)
+
+                （4）遍历同时删除
+                    list_for_each_entry_safe(pos, next, head, member)
+                
+void inotify_inode_is_dead(struct inode *inode)
+{
+    struct inotify_watch *watch, *next;
+    mutex_lock(&inode->inotify_mutex);
+    list_for_each_entry_safe(watch, next, &inode->inotify_watches, i_list) {
+        struct inotify_handle *ih = watch->ih;
+        mutex_lock(&ih->mutex);
+        inotify_remove_wach_locked(ih, watch);  /* deletes watch */
+        mutex_unlock(&ih->mutex);
+    }
+    mutex_unlock(&inode->inotify_mutex);
+}
+                （5）反向遍历并删除：
+                list_for_each_entry_safe_reverse(pos, n, head, member)
+            
+                注意：并发，需要锁定链表
 #endif
